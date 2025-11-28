@@ -1,0 +1,82 @@
+basePath: /
+definitions:
+  errors.AppError:
+    properties:
+      code:
+        type: integer
+      message:
+        type: string
+    type: object
+  todo.CreateTodoRequest:
+    properties:
+      description:
+        minLength: 1
+        type: string
+      dueDate:
+        type: string
+    required:
+    - description
+    - dueDate
+    type: object
+  todo.CreateTodoResponse:
+    properties:
+      todoItem:
+        $ref: '#/definitions/todo.TodoItem'
+    type: object
+  todo.TodoItem:
+    properties:
+      description:
+        description: Description
+        type: string
+      dueDate:
+        description: Due date
+        type: string
+      id:
+        description: UUID
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@example.com
+    name: API Support
+  description: A Todo service built with Clean Architecture that manages todo items
+    and publishes them to Redis Stream
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: Todo Service API
+  version: "1.0"
+paths:
+  /todo:
+    post:
+      consumes:
+      - application/json
+      description: Create a new todo item and publish it to Redis Stream
+      parameters:
+      - description: Todo creation request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/todo.CreateTodoRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/todo.CreateTodoResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/errors.AppError'
+      summary: Create a new todo item
+      tags:
+      - todos
+swagger: "2.0"
