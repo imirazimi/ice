@@ -16,7 +16,7 @@ func RunMigrations(cfg config.MySQLConfig) error {
 		cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.Database)
 
 	m, err := migrate.New(
-		"file://internal/infra/migration/mysql",
+		"file://internal/migration/mysql",
 		dsn,
 	)
 	if err != nil {

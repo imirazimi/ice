@@ -6,22 +6,18 @@ import (
 	"ice/internal/todo"
 )
 
-type TodoServiceImpl struct {
-	repo  port.Repository
-	redis port.RedisStreamPublisher
+type Service struct {
+	repo   port.TodoRepository
+	outbox port.OutboxWriter
 }
 
-func NewTodoService(repo port.Repository, redis port.RedisStreamPublisher) *TodoServiceImpl {
-	return &TodoServiceImpl{repo: repo, redis: redis}
+func NewService(repo port.TodoRepository, outbox port.OutboxWriter) *Service {
+	return &Service{repo: repo, outbox: outbox}
 }
 
-// TODO: need to implement Outbox Pattern to ensure data consistency between MySQL and Redis.
-func (s *TodoServiceImpl) CreateTodo(ctx context.Context, item *todo.TodoItem) error {
+func (s *Service) CreateTodo(ctx context.Context, item *todo.TodoItem) error {
 	if err := s.repo.Create(ctx, item); err != nil {
 		return err
 	}
-	if err := s.redis.PublishTodo(ctx, item); err != nil {
-		return err
-	}
-	return nil
+	return s.outbox.Write(ctx, "todo_stream", item)
 }

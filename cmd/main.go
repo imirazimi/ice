@@ -25,6 +25,8 @@ import (
 	"ice/internal/adapter/mysql"
 	"ice/internal/adapter/redis"
 	"ice/internal/handler/http"
+	outboxrepo "ice/internal/outbox/repository"
+	outboxservice "ice/internal/outbox/service"
 	"ice/internal/todo/repository"
 	"ice/internal/todo/service"
 	"ice/pkg/logger"
@@ -34,20 +36,22 @@ import (
 )
 
 func main() {
+
+	// Flags
 	migrateFlag := flag.Bool("migrate", false, "run DB migrations and exit")
 	devFlag := flag.Bool("dev", false, "run in development mode")
 	flag.Parse()
 
-	// Initialize logger
+	// Logger
 	if err := logger.Init(*devFlag); err != nil {
 		panic(err)
 	}
 	defer logger.Sync()
 
 	log := logger.Get()
-
 	cfg := config.Load()
 
+	// Run migrations
 	if *migrateFlag {
 		if err := migrator.RunMigrations(cfg.MySQL); err != nil {
 			log.Fatal("migration failed", zap.Error(err))
@@ -55,54 +59,72 @@ func main() {
 		os.Exit(0)
 	}
 
-	// Initialize MySQL adapter
+	// Initialize MySQL
 	mysqlAdapter, err := mysql.NewMySQL(cfg.MySQL)
 	if err != nil {
 		log.Fatal("failed to initialize mysql adapter", zap.Error(err))
 	}
 
-	// Initialize Redis adapter
+	// Initialize Redis
 	redisCli, err := redis.NewRedisStreamClient(cfg.Redis)
 	if err != nil {
 		mysqlAdapter.Close()
 		log.Fatal("failed to initialize redis adapter", zap.Error(err))
 	}
+	outboxRepo := outboxrepo.NewRepository(mysqlAdapter)
+	outboxService := outboxservice.NewService(outboxRepo, redisCli)
+	// Initialize Repository + Service
+	TodoRepository := repository.NewRepository(mysqlAdapter)
+	todoService := service.NewService(TodoRepository, outboxService)
 
-	// Initialize service
-	repo := repository.NewRepository(mysqlAdapter)
-	todoService := service.NewTodoService(repo, redisCli)
+	// ---------------------------------------
+	// NEW: Outbox Processor Context + Goroutine
+	// ---------------------------------------
+	outboxCtx, outboxCancel := context.WithCancel(context.Background())
+	outboxService.StartProcessor(outboxCtx)
+	log.Info("Outbox processor started")
 
-	// Start HTTP server with dependencies
+	// ---------------------------------------
+	// HTTP Server
+	// ---------------------------------------
 	server := http.NewServer(http.ServerDependencies{
 		TodoService: todoService,
 		MySQL:       mysqlAdapter.DB(),
 		Redis:       redisCli.Client(),
 	}, cfg.HTTP.Port)
 
-	// Wait for interrupt signal to gracefully shutdown
+	// Wait for interrupt signal
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 	<-quit
 
 	log.Info("Shutting down server...")
 
-	// Graceful shutdown with timeout
+	// GLOBAL shutdown context
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
+	// ---------------------------------------
+	// NEW: Stop Outbox Processor
+	// ---------------------------------------
+	log.Info("Stopping Outbox processor...")
+	outboxCancel()
+	// Optional: small sleep to give goroutine time to stop cleanly
+	time.Sleep(200 * time.Millisecond)
+
 	// Shutdown HTTP server
 	if err := server.Shutdown(ctx); err != nil {
-		log.Error("Error shutting down server", zap.Error(err))
+		log.Error("Error shutting down HTTP server", zap.Error(err))
 	}
 
-	log.Info("Shutting down components...")
+	log.Info("Closing components...")
 
-	// Close Redis connection
+	// Close Redis
 	if err := redisCli.Close(); err != nil {
 		log.Error("Error closing Redis connection", zap.Error(err))
 	}
 
-	// Close MySQL connection
+	// Close MySQL
 	if err := mysqlAdapter.Close(); err != nil {
 		log.Error("Error closing MySQL connection", zap.Error(err))
 	}

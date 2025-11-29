@@ -10,9 +10,11 @@ definitions:
   todo.CreateTodoRequest:
     properties:
       description:
+        example: test task
         minLength: 1
         type: string
       dueDate:
+        example: "2025-01-01T06:00:00Z"
         type: string
     required:
     - description

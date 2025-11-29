@@ -114,8 +114,9 @@ go run ./cmd/main.go -migrate
 
 ### Migration Files
 
-Migration files are located in `internal/infra/migration/mysql/` and follow the naming convention:
-- `001_create_todos.sql` - Creates the todos table
+Migration files are located in `internal/migration/mysql/` and follow the naming convention:
+- `001_create_todos.up.sql` - Creates the todos table
+- `002_create_outbox.up.sql` - Creates the outbox table
 
 ### Notes
 
@@ -215,6 +216,7 @@ Error codes:
 - ✅ Clean Architecture
 - ✅ MySQL database with migrations
 - ✅ Redis Stream integration
+- ✅ Outbox pattern implementation
 - ✅ Echo web framework
 - ✅ Request validation
 - ✅ UUID generation

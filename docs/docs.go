@@ -91,10 +91,12 @@ const docTemplate = `{
             "properties": {
                 "description": {
                     "type": "string",
-                    "minLength": 1
+                    "minLength": 1,
+                    "example": "test task"
                 },
                 "dueDate": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "2025-01-01T06:00:00Z"
                 }
             }
         },

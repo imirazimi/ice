@@ -31,14 +31,13 @@ func Init(development bool) error {
 func Get() *zap.Logger {
 	if globalLogger == nil {
 		// Fallback to development logger if not initialized
-		_ = Init(true)
+		Init(true)
 	}
 	return globalLogger
 }
 
 func Sync() {
 	if globalLogger != nil {
-		_ = globalLogger.Sync()
+		globalLogger.Sync()
 	}
 }
-

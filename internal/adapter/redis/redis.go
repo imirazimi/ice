@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"ice/config"
-	"ice/internal/todo"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -34,30 +34,28 @@ func NewRedisStreamClient(cfg config.RedisConfig) (*RedisStreamClient, error) {
 	}, nil
 }
 
-func (r *RedisStreamClient) PublishTodo(ctx context.Context, item *todo.TodoItem) error {
-	// Marshal todo item to JSON
-	data, err := json.Marshal(map[string]interface{}{
-		"id":          item.ID,
-		"description": item.Description,
-		"dueDate":     item.DueDate.Format("2006-01-02T15:04:05Z07:00"),
-	})
+func (r *RedisStreamClient) Publish(ctx context.Context, stream string, data interface{}) error {
+	// تبدیل data به JSON
+	payload, err := json.Marshal(data)
 	if err != nil {
-		return fmt.Errorf("failed to marshal todo item: %w", err)
+		return err
 	}
 
-	// Add to Redis Stream
+	// ارسال به Redis Stream
 	args := &redis.XAddArgs{
-		Stream: r.stream,
+		Stream: stream,
 		Values: map[string]interface{}{
-			"data": string(data),
+			"payload": string(payload),
 		},
+		MaxLen: 0, // می‌توانید محدودیت طول Stream را تنظیم کنید
 	}
 
-	if err := r.client.XAdd(ctx, args).Err(); err != nil {
-		return fmt.Errorf("failed to publish to redis stream: %w", err)
-	}
+	// با timeout کوتاه برای جلوگیری از بلاک شدن
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
 
-	return nil
+	_, err = r.client.XAdd(ctx, args).Result()
+	return err
 }
 
 func (r *RedisStreamClient) Client() *redis.Client {
