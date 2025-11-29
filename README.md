@@ -80,19 +80,21 @@ GET http://localhost:8080/swagger/index.html
 
 Access the interactive API documentation at `/swagger/index.html`
 
-## Directory Structure
-- `cmd/`: Main application entrypoint
-- `internal/todo/`: Domain and service code for todo
-  - `internal/todo/repository/`: Database repository layer (uses MySQL adapter)
-- `internal/adapter/`: Infrastructure adapters
-  - `internal/adapter/mysql`: MySQL database adapter (reusable across services)
-  - `internal/adapter/redis`: Redis stream layer
-- `internal/handler/http`: HTTP handlers
-- `pkg/`: Reusable packages
-  - `pkg/validator`: Request validation package
-  - `pkg/errors`: Custom error types
-  - `pkg/logger`: Structured logging with zap
-- `docs/`: Swagger/OpenAPI documentation (generated)
+## 📁 Project Structure
+
+- **cmd/** — Application entry point (main.go) and service bootstrap.
+- **config/** — Configuration loading and environment settings (MySQL, Redis, HTTP).
+- **docs/** — Generated Swagger files (swagger.json / swagger.yaml).
+- **internal/** — Core application following Clean Architecture.
+  - **adapter/** — Infrastructure adapters such as MySQL, Redis, etc.
+  - **handler/http/** — HTTP handlers and REST API definitions.
+  - **migration/** — SQL migration scripts for database schema.
+  - **outbox/** — Outbox Pattern implementation (entity, repo, processor).
+  - **port/** — Interfaces between layers (ports).
+  - **todo/** — Todo module including entity, dto, service, repository.
+- **pkg/** — Reusable packages like logger, errors, migrator, validator.
+- **Makefile** — Development tasks (run, swagger, migrate).
+
 
 ## Database Migrations
 
